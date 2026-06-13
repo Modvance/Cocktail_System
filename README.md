@@ -87,6 +87,13 @@ python -m src.data.build_manifest --config configs/sources.yaml
 python -m src.data.build_tse_mix --config configs/dataset_build.yaml --dataset EN-TSE-Mix --splits train --num-samples 20
 ```
 
+### 4b. 生成 easy 版 pilot 数据集
+```bash
+python -m src.data.build_tse_mix_easy --config configs/dataset_build_easy.yaml --dataset EN-TSE-Mix-Easy --splits train --num-samples 20
+python -m src.data.build_tse_mix_easy --config configs/dataset_build_easy.yaml --dataset ZH-TSE-Mix-Easy --splits train --num-samples 20
+python -m src.data.build_tse_mix_easy --config configs/dataset_build_easy.yaml --dataset Bilingual-TSE-Mix-Easy --splits train --num-samples 20
+```
+
 ### 5. 检查生成结果
 ```bash
 python -m src.data.check_dataset --dataset-root data/generated/EN-TSE-Mix
@@ -116,6 +123,13 @@ python src/train.py --config configs/train_en.yaml
 ```bash
 python src/train.py --config configs/train_zh.yaml
 python src/train.py --config configs/train_bilingual.yaml
+```
+
+### 10b. 训练 easy 版 EN / ZH / 双语模型
+```bash
+python src/train.py --config configs/train_en_easy.yaml
+python src/train.py --config configs/train_zh_easy.yaml
+python src/train.py --config configs/train_bilingual_easy.yaml
 ```
 
 ### 11. 单样本推理
@@ -152,6 +166,13 @@ python src/evaluate.py --eval_config configs/eval_cross_language.yaml
 - 会生成 `train.csv / valid.csv / test.csv / dataset_stats.json / quality_report.md`
 - 会生成 `mixture.wav / target_clean.wav / enrollment.wav / noise.wav / meta.json`
 
+当前 `build_tse_mix_easy.py` 是与原始构建链路独立的 easy 版本：
+- 原始 `build_tse_mix.py` 与 `configs/dataset_build.yaml` 保持不变
+- easy 版使用 `configs/dataset_build_easy.yaml`
+- 支持 `EN-TSE-Mix-Easy`、`ZH-TSE-Mix-Easy` 与 `Bilingual-TSE-Mix-Easy`
+- 第一版主要收紧 SNR 分布：train 采样范围为 `5~10 dB`，valid/test 使用 `0/5/10 dB`
+- 输出目录结构、CSV 字段和样本文件布局与原版保持一致，可直接复用现有训练/检查/preview/评估脚本
+
 当前说明：
 - 依赖 `soundfile`，否则无法进行真实音频读写
 - 数据构建、训练、推理、评估统一在 `cocktail` conda 环境中执行
@@ -162,7 +183,8 @@ python src/evaluate.py --eval_config configs/eval_cross_language.yaml
 - `train.py` 当前已支持 AMP 开关、checkpoint 保存/恢复、`validate_every`/`train_metrics_every`/`save_examples_every` 降频控制，并默认只在 best checkpoint 更新时导出 `results/validation_samples/` 验证样例
 - `infer.py` 支持 `--save_fig`，会额外输出 waveform、spectrogram、mask、attention 与 overview 图
 - `evaluate.py` 会输出 `metrics_per_sample.csv`、`metrics_summary.json/.md`、按 speaker/SNR/lang/overlap 分组统计、`audio_examples/` 与 `figures/`
-- 当前默认训练配置已针对服务器训练做了第一轮平衡：`batch_size=4`、`amp=true`、`num_workers=4`、`persistent_workers=true`、`validate_every=2`、只在 best epoch 导出验证样例
+- 当前默认训练配置已针对服务器训练做了第一轮平衡：`batch_size=4`、`num_workers=4`、`persistent_workers=true`、`validate_every=2`、只在 best epoch 导出验证样例；若不同 GPU / 数据域上出现 AMP 数值不稳定，可先保持 `amp=false` 稳定训练
+- easy 训练配置不改训练代码本体，只是把 `train_csv / valid_csv / checkpoint.save_dir` 切到 `*-Easy` 数据集与对应 checkpoint 目录
 - 当前已补齐训练侧主干与可视化配套：Dataset、TSE-FAM、loss、debug、train、infer、evaluate、metric_utils、visualize
 - 当前已在 `cocktail` conda 环境中完成动态验证：`check_forward.py` 通过、8 样本 overfit 检查通过、1 epoch smoke train 通过、推理 smoke test 通过、带配置文件的评估 smoke test 通过
 - 当前 smoke 结果基于 `checkpoints/en_tse_fam_smoke/`、`results/estimated_target_smoke_v2.wav` 与 `results/eval/en_model_on_en_smoke_v2/`，说明最小训练 / 推理 / 评估 / 可视化链路已经跑通

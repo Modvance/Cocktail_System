@@ -5,8 +5,8 @@ data:
   sample_rate: 16000
   mixture_duration: 8.0
   enrollment_duration: 5.0
-  train_csv: data/generated/ZH-TSE-Mix/train.csv
-  valid_csv: data/generated/ZH-TSE-Mix/valid.csv
+  train_csv: data/generated/Bilingual-TSE-Mix-Easy/train.csv
+  valid_csv: data/generated/Bilingual-TSE-Mix-Easy/valid.csv
 
 feature:
   n_fft: 512
@@ -58,6 +58,6 @@ loss:
   spk_weight: 0.0
 
 checkpoint:
-  save_dir: checkpoints/zh_tse_fam
+  save_dir: checkpoints/bilingual_tse_fam_easy
   monitor: valid_sisdr_i
   mode: max

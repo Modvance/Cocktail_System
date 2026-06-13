@@ -66,8 +66,11 @@ def parse_args() -> argparse.Namespace:
     return args
 
 
-def save_example_bundle(out_dir: Path, sample_id: str, batch_index: int, batch: dict[str, Any], outputs: dict[str, Any]) -> None:
-    example_dir = out_dir / "audio_examples" / sample_id
+def save_example_bundle(out_dir: Path, sample_id: str, batch_index: int, batch: dict[str, Any], outputs: dict[str, Any], category: str | None = None) -> None:
+    example_dir = out_dir / "audio_examples"
+    if category:
+        example_dir = example_dir / category
+    example_dir = example_dir / sample_id
     example_dir.mkdir(parents=True, exist_ok=True)
     mixture = batch["mixture"][batch_index].detach().cpu().numpy()
     target = batch["target"][batch_index].detach().cpu().numpy()
@@ -90,6 +93,59 @@ def save_example_bundle(out_dir: Path, sample_id: str, batch_index: int, batch: 
         mask=mask,
         attention=attention_np,
     )
+
+
+def select_example_indices(rows: list[dict[str, Any]], num_examples: int) -> list[tuple[str, int]]:
+    if not rows or num_examples <= 0:
+        return []
+    ranked_indices = sorted(range(len(rows)), key=lambda idx: (rows[idx]["si_sdri"], rows[idx]["sample_id"]))
+    ranked_positions = {idx: pos for pos, idx in enumerate(ranked_indices)}
+    selected: list[tuple[str, int]] = []
+    used: set[int] = set()
+
+    def add(category: str, idx: int) -> None:
+        if idx in used:
+            return
+        selected.append((category, idx))
+        used.add(idx)
+
+    add("worst", ranked_indices[0])
+    median_pos = len(ranked_indices) // 2
+    add("median", ranked_indices[median_pos])
+    add("best", ranked_indices[-1])
+
+    if num_examples <= len(selected):
+        order = {"best": 0, "median": 1, "worst": 2}
+        return sorted(selected, key=lambda item: order[item[0]])[:num_examples]
+
+    center = (len(ranked_indices) - 1) / 2.0
+    remainder = [idx for idx in ranked_indices if idx not in used]
+    remainder.sort(key=lambda idx: (abs(ranked_positions[idx] - center), -rows[idx]["si_sdri"], rows[idx]["sample_id"]))
+    for idx in remainder:
+        if len(selected) >= num_examples:
+            break
+        add(f"extra_{len(selected) + 1}", idx)
+
+    order = {"best": 0, "median": 1, "worst": 2}
+    return sorted(selected, key=lambda item: (order.get(item[0], 3), item[0]))
+
+
+def write_selected_examples_markdown(out_dir: Path, selected_examples: list[dict[str, Any]]) -> None:
+    lines = ["# Selected Audio Examples", "", "Examples are chosen by `si_sdri`.", ""]
+    for example in selected_examples:
+        row = example["row"]
+        lines.extend([
+            f"## {example['category']}",
+            f"- sample_id: {row['sample_id']}",
+            f"- si_sdri: {row['si_sdri']:.4f}",
+            f"- si_sdr_out: {row['si_sdr_out']:.4f}",
+            f"- snr_db: {row['snr_db']}",
+            f"- num_speakers: {row['num_speakers']}",
+            f"- lang: {row['lang']}",
+            f"- overlap_mode: {row['overlap_mode']}",
+            "",
+        ])
+    write_markdown(out_dir / "audio_examples" / "selected_examples.md", "\n".join(lines))
 
 
 def write_summary_markdown(out_dir: Path, summary: dict[str, float]) -> None:
@@ -163,9 +219,9 @@ def evaluate_run(run: dict[str, Any], device_override: str | None = None, num_ex
     )
 
     rows: list[dict[str, Any]] = []
+    example_payloads: dict[str, dict[str, Any]] = {}
     out_dir = resolve_path(run["out_dir"])
     out_dir.mkdir(parents=True, exist_ok=True)
-    examples_saved = 0
     num_examples = int(run.get("num_examples", 3) if num_examples_override is None else num_examples_override)
 
     with torch.no_grad():
@@ -185,10 +241,19 @@ def evaluate_run(run: dict[str, Any], device_override: str | None = None, num_ex
             sar = batch_sar(outputs["estimated_waveform"], target).cpu()
             batch_size = mixture.size(0)
 
+            mixture_cpu = batch["mixture"].detach().cpu()
+            target_cpu = batch["target"].detach().cpu()
+            enrollment_cpu = batch["enrollment"].detach().cpu()
+            estimated_cpu = outputs["estimated_waveform"].detach().cpu()
+            mask_cpu = outputs["mask"].detach().cpu()
+            attention = outputs["attention"]
+            attention_cpu = None if attention is None else attention.detach().cpu()
+
             for idx in range(batch_size):
                 snr_value = float(batch["snr_db"][idx])
+                sample_id = batch["sample_id"][idx]
                 row = {
-                    "sample_id": batch["sample_id"][idx],
+                    "sample_id": sample_id,
                     "lang": batch["lang"][idx],
                     "num_speakers": int(batch["num_speakers"][idx]),
                     "snr_db": "clean" if snr_value != snr_value else snr_value,
@@ -204,9 +269,39 @@ def evaluate_run(run: dict[str, Any], device_override: str | None = None, num_ex
                     "sar": float(sar[idx].item()),
                 }
                 rows.append(row)
-                if examples_saved < num_examples:
-                    save_example_bundle(out_dir, row["sample_id"], idx, batch, outputs)
-                    examples_saved += 1
+                example_payloads[sample_id] = {
+                    "mixture": mixture_cpu[idx].numpy(),
+                    "target": target_cpu[idx].numpy(),
+                    "enrollment": enrollment_cpu[idx].numpy(),
+                    "estimate": estimated_cpu[idx].numpy(),
+                    "mask": mask_cpu[idx].numpy(),
+                    "attention": None if attention_cpu is None else attention_cpu[idx].numpy(),
+                    "sample_rate": int(data_cfg["sample_rate"]),
+                }
+
+    selected_examples = []
+    for category, row_idx in select_example_indices(rows, num_examples):
+        row = rows[row_idx]
+        payload = example_payloads[row["sample_id"]]
+        example_dir = out_dir / "audio_examples" / category / row["sample_id"]
+        example_dir.mkdir(parents=True, exist_ok=True)
+        write_audio(example_dir / "mixture.wav", payload["mixture"], payload["sample_rate"])
+        write_audio(example_dir / "target_clean.wav", payload["target"], payload["sample_rate"])
+        write_audio(example_dir / "enrollment.wav", payload["enrollment"], payload["sample_rate"])
+        write_audio(example_dir / "estimated_target.wav", payload["estimate"], payload["sample_rate"])
+        save_case_visualizations(
+            output_dir=example_dir,
+            mixture=payload["mixture"],
+            enrollment=payload["enrollment"],
+            estimate=payload["estimate"],
+            target=payload["target"],
+            mask=payload["mask"],
+            attention=payload["attention"],
+        )
+        selected_examples.append({"category": category, "row": row})
+
+    if selected_examples:
+        write_selected_examples_markdown(out_dir, selected_examples)
 
     write_csv(out_dir / "metrics_per_sample.csv", PER_SAMPLE_FIELDS, rows)
     summary = {"sample_count": len(rows), **summarize_metrics(rows)}
