@@ -60,6 +60,7 @@ def run_epoch(
     device: torch.device,
     training: bool,
     amp_enabled: bool,
+    collect_quality_metrics: bool,
 ) -> dict[str, float]:
     model.train(training)
     total_loss = 0.0
@@ -68,7 +69,7 @@ def run_epoch(
     total_sisdr = 0.0
     total_sisdri = 0.0
     steps = 0
-    scaler = torch.cuda.amp.GradScaler(enabled=amp_enabled and training)
+    scaler = torch.amp.GradScaler(device.type, enabled=amp_enabled and training)
     autocast_device = "cuda" if device.type == "cuda" else "cpu"
     with torch.set_grad_enabled(training):
         for batch in loader:
@@ -90,24 +91,27 @@ def run_epoch(
                     loss.backward()
                     torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
                     optimizer.step()
-            with torch.no_grad():
-                sisdr = batch_sisdr(outputs["estimated_waveform"], target).mean().item()
-                sisdri = batch_sisdri(outputs["estimated_waveform"], mixture, target).mean().item()
+            if collect_quality_metrics:
+                with torch.no_grad():
+                    sisdr = batch_sisdr(outputs["estimated_waveform"], target).mean().item()
+                    sisdri = batch_sisdri(outputs["estimated_waveform"], mixture, target).mean().item()
+                total_sisdr += sisdr
+                total_sisdri += sisdri
             total_loss += float(loss.item())
             total_sisdr_loss += float(sisdr_loss.item())
             total_mag_loss += float(mag_loss.item())
-            total_sisdr += sisdr
-            total_sisdri += sisdri
             steps += 1
     if steps == 0:
         raise RuntimeError("No batches were processed.")
-    return {
+    metrics = {
         "loss": total_loss / steps,
         "sisdr_loss": total_sisdr_loss / steps,
         "mag_loss": total_mag_loss / steps,
-        "sisdr": total_sisdr / steps,
-        "sisdri": total_sisdri / steps,
     }
+    if collect_quality_metrics:
+        metrics["sisdr"] = total_sisdr / steps
+        metrics["sisdri"] = total_sisdri / steps
+    return metrics
 
 
 def save_validation_examples(model: TSEFAM, config: dict[str, Any], device: torch.device, epoch: int, limit: int = 3) -> None:
@@ -126,6 +130,8 @@ def save_validation_examples(model: TSEFAM, config: dict[str, Any], device: torc
         drop_last=False,
         training=False,
         limit=limit,
+        persistent_workers=train_cfg.get("persistent_workers"),
+        prefetch_factor=train_cfg.get("prefetch_factor"),
     )
     sample_rate = int(data_cfg["sample_rate"])
     model_was_training = model.training
@@ -181,6 +187,8 @@ def main() -> None:
         drop_last=train_cfg.get("drop_last_train", True),
         training=True,
         gain_augment_db=train_cfg.get("gain_augment_db", 0.0),
+        persistent_workers=train_cfg.get("persistent_workers"),
+        prefetch_factor=train_cfg.get("prefetch_factor"),
     )
     valid_loader = create_dataloader(
         csv_path=data_cfg["valid_csv"],
@@ -193,6 +201,8 @@ def main() -> None:
         pin_memory=train_cfg["pin_memory"],
         drop_last=False,
         training=False,
+        persistent_workers=train_cfg.get("persistent_workers"),
+        prefetch_factor=train_cfg.get("prefetch_factor"),
     )
 
     model = TSEFAM(config).to(device)
@@ -213,8 +223,13 @@ def main() -> None:
     log_path = f"{save_dir}/train_log.csv"
 
     amp_enabled = bool(train_cfg.get("amp", False)) and device.type == "cuda"
+    validate_every = int(train_cfg.get("validate_every", 1))
+    save_examples_every = int(train_cfg.get("save_examples_every", 0))
+    train_metrics_every = int(train_cfg.get("train_metrics_every", validate_every))
 
     for epoch in range(start_epoch, train_cfg["epochs"] + 1):
+        should_validate = (epoch % validate_every == 0) or (epoch == train_cfg["epochs"])
+        should_collect_train_metrics = (epoch % train_metrics_every == 0) or should_validate
         train_metrics = run_epoch(
             model=model,
             loader=train_loader,
@@ -226,20 +241,24 @@ def main() -> None:
             device=device,
             training=True,
             amp_enabled=amp_enabled,
+            collect_quality_metrics=should_collect_train_metrics,
         )
-        valid_metrics = run_epoch(
-            model=model,
-            loader=valid_loader,
-            optimizer=optimizer,
-            sisdr_loss_fn=sisdr_loss_fn,
-            mag_loss_fn=mag_loss_fn,
-            loss_cfg=loss_cfg,
-            grad_clip=train_cfg["grad_clip"],
-            device=device,
-            training=False,
-            amp_enabled=amp_enabled,
-        )
-        scheduler.step(valid_metrics["sisdri"])
+        valid_metrics = {"loss": float("nan"), "sisdr": float("nan"), "sisdri": float("nan")}
+        if should_validate:
+            valid_metrics = run_epoch(
+                model=model,
+                loader=valid_loader,
+                optimizer=optimizer,
+                sisdr_loss_fn=sisdr_loss_fn,
+                mag_loss_fn=mag_loss_fn,
+                loss_cfg=loss_cfg,
+                grad_clip=train_cfg["grad_clip"],
+                device=device,
+                training=False,
+                amp_enabled=amp_enabled,
+                collect_quality_metrics=True,
+            )
+            scheduler.step(valid_metrics["sisdri"])
         current_lr = optimizer.param_groups[0]["lr"]
         row = {
             "epoch": epoch,
@@ -253,10 +272,17 @@ def main() -> None:
         }
         append_csv_row(log_path, LOG_FIELDS, row)
         save_checkpoint(f"{save_dir}/last.pt", epoch, model, optimizer, scheduler, best_metric, config)
-        if valid_metrics["sisdri"] >= best_metric:
+        is_best = should_validate and valid_metrics["sisdri"] >= best_metric
+        if is_best:
             best_metric = valid_metrics["sisdri"]
             save_checkpoint(f"{save_dir}/best.pt", epoch, model, optimizer, scheduler, best_metric, config)
-        save_validation_examples(model, config, device, epoch, limit=min(3, train_cfg["batch_size"] + 1))
+        should_save_examples = False
+        if save_examples_every > 0 and epoch % save_examples_every == 0:
+            should_save_examples = True
+        if is_best and train_cfg.get("save_examples_on_best", True):
+            should_save_examples = True
+        if should_save_examples:
+            save_validation_examples(model, config, device, epoch, limit=min(3, train_cfg["batch_size"] + 1))
         print(row)
 
 

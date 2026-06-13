@@ -33,21 +33,27 @@ model:
   use_attention: true
 
 train:
-  batch_size: 2
-  epochs: 50
-  lr: 0.001
+  batch_size: 4
+  epochs: 60
+  lr: 0.0005
   weight_decay: 0.000001
   grad_clip: 5.0
-  amp: false
-  num_workers: 2
+  amp: true
+  num_workers: 4
   pin_memory: true
+  persistent_workers: true
+  prefetch_factor: 2
   shuffle_train: true
   drop_last_train: true
-  gain_augment_db: 0.0
+  gain_augment_db: 3.0
+  validate_every: 2
+  train_metrics_every: 2
+  save_examples_every: 0
+  save_examples_on_best: true
 
 loss:
   sisdr_weight: 1.0
-  mag_weight: 0.3
+  mag_weight: 0.2
   mrstft_weight: 0.0
   spk_weight: 0.0
 

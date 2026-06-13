@@ -4,6 +4,7 @@ import math
 
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class TargetConditioningModule(nn.Module):
@@ -26,20 +27,24 @@ class TargetConditioningModule(nn.Module):
 
         hidden = mixture_feat
         if self.use_film:
-            gamma = self.gamma(speaker_embedding).unsqueeze(1)
+            gamma = torch.tanh(self.gamma(speaker_embedding)).unsqueeze(1)
             beta = self.beta(speaker_embedding).unsqueeze(1)
-            hidden = gamma * hidden + beta
+            hidden = hidden * (1.0 + gamma) + beta
+
+        expanded = speaker_embedding.unsqueeze(1).expand(-1, hidden.size(1), -1)
+        hidden = hidden + self.concat_proj(torch.cat([hidden, expanded], dim=-1))
 
         if not self.use_attention:
-            expanded = speaker_embedding.unsqueeze(1).expand(-1, hidden.size(1), -1)
-            return self.concat_proj(torch.cat([hidden, expanded], dim=-1)), None
+            return hidden, None
 
-        query = self.query(speaker_embedding).unsqueeze(1)
-        key = self.key(hidden)
+        query = F.normalize(self.query(speaker_embedding), dim=-1).unsqueeze(1)
+        key = F.normalize(self.key(hidden), dim=-1)
         value = self.value(hidden)
-        scores = torch.sum(query * key, dim=-1) / math.sqrt(hidden.size(-1))
-        weights = torch.softmax(scores, dim=-1)
-        context = torch.sum(weights.unsqueeze(-1) * value, dim=1)
+        scores = torch.sum(query * key, dim=-1) * math.sqrt(hidden.size(-1))
+        weights = torch.sigmoid(scores)
+        gated_hidden = hidden * (1.0 + weights.unsqueeze(-1))
+        denom = weights.sum(dim=-1, keepdim=True).clamp_min(1e-6)
+        context = torch.sum(value * weights.unsqueeze(-1), dim=1) / denom
         context_expand = context.unsqueeze(1).expand(-1, hidden.size(1), -1)
-        fused = self.fusion(torch.cat([hidden, context_expand], dim=-1))
-        return hidden + fused, weights
+        fused = self.fusion(torch.cat([gated_hidden, context_expand], dim=-1))
+        return hidden + gated_hidden + fused, weights

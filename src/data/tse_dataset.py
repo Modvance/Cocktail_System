@@ -80,6 +80,8 @@ def create_dataloader(
     training: bool = False,
     gain_augment_db: float = 0.0,
     limit: int | None = None,
+    persistent_workers: bool | None = None,
+    prefetch_factor: int | None = None,
 ) -> DataLoader:
     dataset = TSEDataset(
         csv_path=csv_path,
@@ -90,11 +92,16 @@ def create_dataloader(
         gain_augment_db=gain_augment_db,
         limit=limit,
     )
-    return DataLoader(
-        dataset,
-        batch_size=batch_size,
-        shuffle=shuffle,
-        num_workers=num_workers,
-        pin_memory=pin_memory,
-        drop_last=drop_last,
-    )
+    loader_kwargs: dict[str, Any] = {
+        "dataset": dataset,
+        "batch_size": batch_size,
+        "shuffle": shuffle,
+        "num_workers": num_workers,
+        "pin_memory": pin_memory,
+        "drop_last": drop_last,
+    }
+    if num_workers > 0:
+        loader_kwargs["persistent_workers"] = num_workers > 0 if persistent_workers is None else persistent_workers
+        if prefetch_factor is not None:
+            loader_kwargs["prefetch_factor"] = prefetch_factor
+    return DataLoader(**loader_kwargs)

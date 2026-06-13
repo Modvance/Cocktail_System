@@ -159,9 +159,10 @@ python src/evaluate.py --eval_config configs/eval_cross_language.yaml
 - bilingual 按方案采用“样本级中英混合”，即单条样本内部保持单语
 - preview 会固定随机抽样，并生成 `waveform.png` 与 `spectrogram.png`
 - 当前训练、推理、评估入口既支持 `python -m src...`，也支持 `python src/...` 直接运行
-- `train.py` 当前已支持 AMP 开关、checkpoint 保存/恢复，并会在 `results/validation_samples/` 下自动导出每个 epoch 的验证音频样例与可视化图
+- `train.py` 当前已支持 AMP 开关、checkpoint 保存/恢复、`validate_every`/`train_metrics_every`/`save_examples_every` 降频控制，并默认只在 best checkpoint 更新时导出 `results/validation_samples/` 验证样例
 - `infer.py` 支持 `--save_fig`，会额外输出 waveform、spectrogram、mask、attention 与 overview 图
 - `evaluate.py` 会输出 `metrics_per_sample.csv`、`metrics_summary.json/.md`、按 speaker/SNR/lang/overlap 分组统计、`audio_examples/` 与 `figures/`
+- 当前默认训练配置已针对服务器训练做了第一轮平衡：`batch_size=4`、`amp=true`、`num_workers=4`、`persistent_workers=true`、`validate_every=2`、只在 best epoch 导出验证样例
 - 当前已补齐训练侧主干与可视化配套：Dataset、TSE-FAM、loss、debug、train、infer、evaluate、metric_utils、visualize
 - 当前已在 `cocktail` conda 环境中完成动态验证：`check_forward.py` 通过、8 样本 overfit 检查通过、1 epoch smoke train 通过、推理 smoke test 通过、带配置文件的评估 smoke test 通过
 - 当前 smoke 结果基于 `checkpoints/en_tse_fam_smoke/`、`results/estimated_target_smoke_v2.wav` 与 `results/eval/en_model_on_en_smoke_v2/`，说明最小训练 / 推理 / 评估 / 可视化链路已经跑通
