@@ -10,6 +10,8 @@ class SISDRLoss(nn.Module):
         self.eps = eps
 
     def forward(self, estimate: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        estimate = estimate.float()
+        target = target.float()
         estimate = estimate - estimate.mean(dim=-1, keepdim=True)
         target = target - target.mean(dim=-1, keepdim=True)
         target_energy = torch.sum(target * target, dim=-1, keepdim=True).clamp_min(self.eps)
@@ -21,6 +23,8 @@ class SISDRLoss(nn.Module):
 
 
 def sisdr_value(estimate: torch.Tensor, target: torch.Tensor, eps: float = 1e-8) -> torch.Tensor:
+    estimate = estimate.float()
+    target = target.float()
     estimate = estimate - estimate.mean(dim=-1, keepdim=True)
     target = target - target.mean(dim=-1, keepdim=True)
     target_energy = torch.sum(target * target, dim=-1, keepdim=True).clamp_min(eps)

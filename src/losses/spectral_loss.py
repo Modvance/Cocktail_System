@@ -13,6 +13,8 @@ class SpectralMagnitudeLoss(nn.Module):
         self.loss = nn.L1Loss()
 
     def forward(self, estimate: torch.Tensor, target: torch.Tensor) -> torch.Tensor:
+        estimate = estimate.float()
+        target = target.float()
         estimate_spec = self.feature_extractor.stft(estimate)
         target_spec = self.feature_extractor.stft(target)
         estimate_log_mag = self.feature_extractor.log_mag(estimate_spec)

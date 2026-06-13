@@ -72,24 +72,36 @@ def run_epoch(
     scaler = torch.amp.GradScaler(device.type, enabled=amp_enabled and training)
     autocast_device = "cuda" if device.type == "cuda" else "cpu"
     with torch.set_grad_enabled(training):
-        for batch in loader:
+        for step_idx, batch in enumerate(loader, start=1):
             mixture, target, enrollment = move_batch_to_device(batch, device)
             with torch.autocast(device_type=autocast_device, enabled=amp_enabled):
                 outputs = model(mixture, enrollment)
-                sisdr_loss = sisdr_loss_fn(outputs["estimated_waveform"], target)
-                mag_loss = mag_loss_fn(outputs["estimated_waveform"], target)
-                loss = loss_cfg["sisdr_weight"] * sisdr_loss + loss_cfg["mag_weight"] * mag_loss
+            sisdr_loss = sisdr_loss_fn(outputs["estimated_waveform"], target)
+            mag_loss = mag_loss_fn(outputs["estimated_waveform"], target)
+            loss = loss_cfg["sisdr_weight"] * sisdr_loss + loss_cfg["mag_weight"] * mag_loss
+            if not torch.isfinite(loss):
+                raise RuntimeError(
+                    f"Non-finite loss at step {step_idx}: "
+                    f"sisdr_loss={float(sisdr_loss.detach().cpu())}, "
+                    f"mag_loss={float(mag_loss.detach().cpu())}, "
+                    f"waveform_finite={bool(torch.isfinite(outputs['estimated_waveform']).all().item())}, "
+                    f"mask_finite={bool(torch.isfinite(outputs['mask']).all().item())}"
+                )
             if training:
                 optimizer.zero_grad(set_to_none=True)
                 if amp_enabled:
                     scaler.scale(loss).backward()
                     scaler.unscale_(optimizer)
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+                    grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+                    if not torch.isfinite(grad_norm):
+                        raise RuntimeError(f"Non-finite grad norm at step {step_idx}: {float(grad_norm.detach().cpu())}")
                     scaler.step(optimizer)
                     scaler.update()
                 else:
                     loss.backward()
-                    torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+                    grad_norm = torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+                    if not torch.isfinite(grad_norm):
+                        raise RuntimeError(f"Non-finite grad norm at step {step_idx}: {float(grad_norm.detach().cpu())}")
                     optimizer.step()
             if collect_quality_metrics:
                 with torch.no_grad():
