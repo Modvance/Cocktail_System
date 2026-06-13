@@ -1,0 +1,74 @@
+runs:
+  - name: en_orig_model_on_en_easy
+    config: configs/train_en.yaml
+    ckpt: checkpoints/en_tse_fam/best.pt
+    test_csv: data/generated/EN-TSE-Mix-Easy/test.csv
+    out_dir: results/eval/matrix_completion/en_orig_model_on_en_easy
+  - name: en_orig_model_on_zh_easy
+    config: configs/train_en.yaml
+    ckpt: checkpoints/en_tse_fam/best.pt
+    test_csv: data/generated/ZH-TSE-Mix-Easy/test.csv
+    out_dir: results/eval/matrix_completion/en_orig_model_on_zh_easy
+  - name: en_easy_model_on_en
+    config: configs/train_en_easy.yaml
+    ckpt: checkpoints/en_tse_fam_easy/best.pt
+    test_csv: data/generated/EN-TSE-Mix/test.csv
+    out_dir: results/eval/matrix_completion/en_easy_model_on_en
+  - name: en_easy_model_on_zh
+    config: configs/train_en_easy.yaml
+    ckpt: checkpoints/en_tse_fam_easy/best.pt
+    test_csv: data/generated/ZH-TSE-Mix/test.csv
+    out_dir: results/eval/matrix_completion/en_easy_model_on_zh
+
+  - name: zh_orig_model_on_zh_easy
+    config: configs/train_zh.yaml
+    ckpt: checkpoints/zh_tse_fam/best.pt
+    test_csv: data/generated/ZH-TSE-Mix-Easy/test.csv
+    out_dir: results/eval/matrix_completion/zh_orig_model_on_zh_easy
+  - name: zh_orig_model_on_en_easy
+    config: configs/train_zh.yaml
+    ckpt: checkpoints/zh_tse_fam/best.pt
+    test_csv: data/generated/EN-TSE-Mix-Easy/test.csv
+    out_dir: results/eval/matrix_completion/zh_orig_model_on_en_easy
+  - name: zh_easy_model_on_zh
+    config: configs/train_zh_easy.yaml
+    ckpt: checkpoints/zh_tse_fam_easy/best.pt
+    test_csv: data/generated/ZH-TSE-Mix/test.csv
+    out_dir: results/eval/matrix_completion/zh_easy_model_on_zh
+  - name: zh_easy_model_on_en
+    config: configs/train_zh_easy.yaml
+    ckpt: checkpoints/zh_tse_fam_easy/best.pt
+    test_csv: data/generated/EN-TSE-Mix/test.csv
+    out_dir: results/eval/matrix_completion/zh_easy_model_on_en
+
+  - name: bilingual_orig_model_on_bilingual_easy
+    config: configs/train_bilingual.yaml
+    ckpt: checkpoints/bilingual_tse_fam/best.pt
+    test_csv: data/generated/Bilingual-TSE-Mix-Easy/test.csv
+    out_dir: results/eval/matrix_completion/bilingual_orig_model_on_bilingual_easy
+  - name: bilingual_orig_model_on_en_easy
+    config: configs/train_bilingual.yaml
+    ckpt: checkpoints/bilingual_tse_fam/best.pt
+    test_csv: data/generated/EN-TSE-Mix-Easy/test.csv
+    out_dir: results/eval/matrix_completion/bilingual_orig_model_on_en_easy
+  - name: bilingual_orig_model_on_zh_easy
+    config: configs/train_bilingual.yaml
+    ckpt: checkpoints/bilingual_tse_fam/best.pt
+    test_csv: data/generated/ZH-TSE-Mix-Easy/test.csv
+    out_dir: results/eval/matrix_completion/bilingual_orig_model_on_zh_easy
+  - name: bilingual_easy_model_on_bilingual
+    config: configs/train_bilingual_easy.yaml
+    ckpt: checkpoints/bilingual_tse_fam_easy/best.pt
+    test_csv: data/generated/Bilingual-TSE-Mix/test.csv
+    out_dir: results/eval/matrix_completion/bilingual_easy_model_on_bilingual
+  - name: bilingual_easy_model_on_en
+    config: configs/train_bilingual_easy.yaml
+    ckpt: checkpoints/bilingual_tse_fam_easy/best.pt
+    test_csv: data/generated/EN-TSE-Mix/test.csv
+    out_dir: results/eval/matrix_completion/bilingual_easy_model_on_en
+  - name: bilingual_easy_model_on_zh
+    config: configs/train_bilingual_easy.yaml
+    ckpt: checkpoints/bilingual_tse_fam_easy/best.pt
+    test_csv: data/generated/ZH-TSE-Mix/test.csv
+    out_dir: results/eval/matrix_completion/bilingual_easy_model_on_zh
+num_examples: 3

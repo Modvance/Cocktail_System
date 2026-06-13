@@ -161,6 +161,7 @@ python src/evaluate.py --eval_config configs/eval_en_easy.yaml
 python src/evaluate.py --eval_config configs/eval_zh_easy.yaml
 python src/evaluate.py --eval_config configs/eval_bilingual_easy.yaml
 python src/evaluate.py --eval_config configs/eval_en_zh_cross_easy.yaml
+python src/evaluate.py --eval_config configs/eval_matrix_completion.yaml
 ```
 
 ## 说明
@@ -192,6 +193,7 @@ python src/evaluate.py --eval_config configs/eval_en_zh_cross_easy.yaml
 - easy 训练配置不改训练代码本体，只是把 `train_csv / valid_csv / checkpoint.save_dir` 切到 `*-Easy` 数据集与对应 checkpoint 目录
 - easy 评估配置也已补齐：`configs/eval_en_easy.yaml`、`configs/eval_zh_easy.yaml`、`configs/eval_bilingual_easy.yaml`
 - 额外提供了只关注 EN↔ZH 互测的跨语言评估配置：`configs/eval_en_zh_cross.yaml` 与 `configs/eval_en_zh_cross_easy.yaml`
+- 如需把当前 original/easy 模型的剩余评估缺口一次性补齐，可运行 `configs/eval_matrix_completion.yaml`，其中包含 original→easy 与 easy→original 的补全 runs，且结果会统一输出到 `results/eval/matrix_completion/` 下
 - 当前已补齐训练侧主干与可视化配套：Dataset、TSE-FAM、loss、debug、train、infer、evaluate、metric_utils、visualize
 - 当前已在 `cocktail` conda 环境中完成动态验证：`check_forward.py` 通过、8 样本 overfit 检查通过、1 epoch smoke train 通过、推理 smoke test 通过、带配置文件的评估 smoke test 通过
 - 当前 smoke 结果基于 `checkpoints/en_tse_fam_smoke/`、`results/estimated_target_smoke_v2.wav` 与 `results/eval/en_model_on_en_smoke_v2/`，说明最小训练 / 推理 / 评估 / 可视化链路已经跑通
