@@ -1,5 +1,17 @@
-config: configs/train_bilingual_easy.yaml
-ckpt: checkpoints/bilingual_tse_fam_easy/best.pt
-test_csv: data/generated/Bilingual-TSE-Mix-Easy/test.csv
-out_dir: results/eval/bilingual_model_on_bilingual_easy
+runs:
+  - name: bilingual_easy_model_on_bilingual_easy
+    config: configs/train_bilingual_easy.yaml
+    ckpt: checkpoints/bilingual_tse_fam_easy/best.pt
+    test_csv: data/generated/Bilingual-TSE-Mix-Easy/test.csv
+    out_dir: results/eval/bilingual_easy_model_on_bilingual_easy
+  - name: bilingual_easy_model_on_en_easy
+    config: configs/train_bilingual_easy.yaml
+    ckpt: checkpoints/bilingual_tse_fam_easy/best.pt
+    test_csv: data/generated/EN-TSE-Mix-Easy/test.csv
+    out_dir: results/eval/bilingual_easy_model_on_en_easy
+  - name: bilingual_easy_model_on_zh_easy
+    config: configs/train_bilingual_easy.yaml
+    ckpt: checkpoints/bilingual_tse_fam_easy/best.pt
+    test_csv: data/generated/ZH-TSE-Mix-Easy/test.csv
+    out_dir: results/eval/bilingual_easy_model_on_zh_easy
 num_examples: 3

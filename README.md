@@ -156,9 +156,11 @@ python src/evaluate.py \
 python src/evaluate.py --eval_config configs/eval_en.yaml
 python src/evaluate.py --eval_config configs/eval_zh.yaml
 python src/evaluate.py --eval_config configs/eval_cross_language.yaml
+python src/evaluate.py --eval_config configs/eval_en_zh_cross.yaml
 python src/evaluate.py --eval_config configs/eval_en_easy.yaml
 python src/evaluate.py --eval_config configs/eval_zh_easy.yaml
 python src/evaluate.py --eval_config configs/eval_bilingual_easy.yaml
+python src/evaluate.py --eval_config configs/eval_en_zh_cross_easy.yaml
 ```
 
 ## 说明
@@ -189,6 +191,7 @@ python src/evaluate.py --eval_config configs/eval_bilingual_easy.yaml
 - 当前默认训练配置已针对服务器训练做了最新一轮实测调整：`batch_size=64`、`num_workers=8`、`persistent_workers=true`、`prefetch_factor=4`、`validate_every=2`、只在 best epoch 导出验证样例；若不同 GPU / 数据域上出现 AMP 数值不稳定，可先保持 `amp=false` 稳定训练
 - easy 训练配置不改训练代码本体，只是把 `train_csv / valid_csv / checkpoint.save_dir` 切到 `*-Easy` 数据集与对应 checkpoint 目录
 - easy 评估配置也已补齐：`configs/eval_en_easy.yaml`、`configs/eval_zh_easy.yaml`、`configs/eval_bilingual_easy.yaml`
+- 额外提供了只关注 EN↔ZH 互测的跨语言评估配置：`configs/eval_en_zh_cross.yaml` 与 `configs/eval_en_zh_cross_easy.yaml`
 - 当前已补齐训练侧主干与可视化配套：Dataset、TSE-FAM、loss、debug、train、infer、evaluate、metric_utils、visualize
 - 当前已在 `cocktail` conda 环境中完成动态验证：`check_forward.py` 通过、8 样本 overfit 检查通过、1 epoch smoke train 通过、推理 smoke test 通过、带配置文件的评估 smoke test 通过
 - 当前 smoke 结果基于 `checkpoints/en_tse_fam_smoke/`、`results/estimated_target_smoke_v2.wav` 与 `results/eval/en_model_on_en_smoke_v2/`，说明最小训练 / 推理 / 评估 / 可视化链路已经跑通
