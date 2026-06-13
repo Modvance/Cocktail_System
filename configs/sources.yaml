@@ -1,0 +1,79 @@
+downloads_root: data/downloads
+raw_root: data/raw
+report_path: results/source_dataset_report.md
+
+preferred_downloaders:
+  - aria2c
+  - wget
+
+spot_check:
+  files_per_split: 3
+  allowed_speech_extensions: [".flac", ".wav"]
+  allowed_noise_extensions: [".wav", ".flac"]
+
+sources:
+  librispeech:
+    kind: speech
+    language: en
+    archive_type: tar
+    extracted_root: data/raw/LibriSpeech
+    archives:
+      - split: train
+        name: train-clean-100
+        filename: train-clean-100.tar.gz
+        urls:
+          - https://www.openslr.org/resources/12/train-clean-100.tar.gz
+      - split: valid
+        name: dev-clean
+        filename: dev-clean.tar.gz
+        urls:
+          - https://www.openslr.org/resources/12/dev-clean.tar.gz
+      - split: test
+        name: test-clean
+        filename: test-clean.tar.gz
+        urls:
+          - https://www.openslr.org/resources/12/test-clean.tar.gz
+    splits:
+      train: train-clean-100
+      valid: dev-clean
+      test: test-clean
+
+  aishell1:
+    kind: speech
+    language: zh
+    archive_type: tar
+    extracted_root: data/raw/AISHELL-1
+    nested_archives:
+      root: data_aishell/wav
+      pattern: S*.tar.gz
+    archives:
+      - split: corpus
+        name: data_aishell
+        filename: data_aishell.tgz
+        urls:
+          - https://www.openslr.org/resources/33/data_aishell.tgz
+      - split: metadata
+        name: resource_aishell
+        filename: resource_aishell.tgz
+        urls:
+          - https://www.openslr.org/resources/33/resource_aishell.tgz
+    splits:
+      train: data_aishell/wav/train
+      valid: data_aishell/wav/dev
+      test: data_aishell/wav/test
+
+  wham_noise:
+    kind: noise
+    archive_type: zip
+    extracted_root: data/raw/wham_noise
+    manual_archive: null
+    archives:
+      - split: all
+        name: wham_noise
+        filename: wham_noise.zip
+        urls:
+          - https://my-bucket-a8b4b49c25c811ee9a7e8bba05fa24c7.s3.amazonaws.com/wham_noise.zip
+    splits:
+      train: tr
+      valid: cv
+      test: tt

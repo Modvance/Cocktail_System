@@ -1,0 +1,23 @@
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Local environments
+.venv/
+venv/
+.env
+
+# Data and experiment outputs
+/data/
+/checkpoints/
+/results/
+
+# OS/editor junk
+.DS_Store
+.vscode/
+.idea/
+
+# DOCS
+docs/
+*.md
+!README.md

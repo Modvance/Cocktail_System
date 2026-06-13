@@ -1,0 +1,99 @@
+seed: 42
+
+paths:
+  manifests_root: data/manifests
+  generated_root: data/generated
+  preview_root: results/dataset_preview
+
+audio:
+  sample_rate: 16000
+  mixture_duration: 8.0
+  target_duration: 8.0
+  enrollment_duration: 5.0
+  target_rms: 0.05
+  peak_limit: 0.95
+
+quality:
+  active_ratio_threshold: 0.6
+  snr_tolerance_db: 0.75
+  tir_tolerance_db: 0.75
+
+sampling:
+  noise_prob: 0.8
+  tir_range_db: [-3.0, 3.0]
+  train_snr_range_db: [-5.0, 10.0]
+  eval_snr_values_db: [-5.0, 0.0, 5.0, 10.0]
+  overlap_ratio:
+    full_overlap: 0.7
+    random_offset: 0.3
+  speaker_ratio:
+    train:
+      2: 0.6
+      3: 0.4
+    valid:
+      2: 0.5
+      3: 0.5
+    test:
+      2: 0.5
+      3: 0.5
+
+preview:
+  samples_per_dataset: 20
+
+runtime:
+  save_sources: false
+  max_attempts_per_sample: 50
+
+datasets:
+  EN-TSE-Mix:
+    language: en
+    sample_counts:
+      train: 2000
+      valid: 300
+      test: 300
+    speech_manifests:
+      train: librispeech_train.csv
+      valid: librispeech_valid.csv
+      test: librispeech_test.csv
+    noise_manifests:
+      train: wham_noise_train.csv
+      valid: wham_noise_valid.csv
+      test: wham_noise_test.csv
+
+  ZH-TSE-Mix:
+    language: zh
+    sample_counts:
+      train: 2000
+      valid: 300
+      test: 300
+    speech_manifests:
+      train: aishell1_train.csv
+      valid: aishell1_valid.csv
+      test: aishell1_test.csv
+    noise_manifests:
+      train: wham_noise_train.csv
+      valid: wham_noise_valid.csv
+      test: wham_noise_test.csv
+
+  Bilingual-TSE-Mix:
+    language: bilingual
+    language_ratio:
+      en: 0.5
+      zh: 0.5
+    sample_counts:
+      train: 3000
+      valid: 500
+      test: 500
+    speech_manifests:
+      en:
+        train: librispeech_train.csv
+        valid: librispeech_valid.csv
+        test: librispeech_test.csv
+      zh:
+        train: aishell1_train.csv
+        valid: aishell1_valid.csv
+        test: aishell1_test.csv
+    noise_manifests:
+      train: wham_noise_train.csv
+      valid: wham_noise_valid.csv
+      test: wham_noise_test.csv

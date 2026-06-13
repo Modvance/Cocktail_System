@@ -1,0 +1,22 @@
+runs:
+  - name: en_model_on_zh
+    config: configs/train_en.yaml
+    ckpt: checkpoints/en_tse_fam/best.pt
+    test_csv: data/generated/ZH-TSE-Mix/test.csv
+    out_dir: results/eval/en_model_on_zh
+  - name: zh_model_on_en
+    config: configs/train_zh.yaml
+    ckpt: checkpoints/zh_tse_fam/best.pt
+    test_csv: data/generated/EN-TSE-Mix/test.csv
+    out_dir: results/eval/zh_model_on_en
+  - name: bilingual_model_on_en
+    config: configs/train_bilingual.yaml
+    ckpt: checkpoints/bilingual_tse_fam/best.pt
+    test_csv: data/generated/EN-TSE-Mix/test.csv
+    out_dir: results/eval/bilingual_model_on_en
+  - name: bilingual_model_on_zh
+    config: configs/train_bilingual.yaml
+    ckpt: checkpoints/bilingual_tse_fam/best.pt
+    test_csv: data/generated/ZH-TSE-Mix/test.csv
+    out_dir: results/eval/bilingual_model_on_zh
+num_examples: 3

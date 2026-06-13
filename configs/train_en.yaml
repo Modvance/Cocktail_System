@@ -1,0 +1,57 @@
+seed: 42
+device: cuda
+
+data:
+  sample_rate: 16000
+  mixture_duration: 8.0
+  enrollment_duration: 5.0
+  train_csv: data/generated/EN-TSE-Mix/train.csv
+  valid_csv: data/generated/EN-TSE-Mix/valid.csv
+
+feature:
+  n_fft: 512
+  win_length: 512
+  hop_length: 256
+  n_mels: 80
+  f_min: 80
+  f_max: 7600
+  enrollment_feature_type: log_mel
+  eps: 1.0e-8
+
+model:
+  speaker_embed_dim: 128
+  speaker_hidden_dim: 256
+  speaker_num_layers: 3
+  hidden_dim: 256
+  lstm_hidden_dim: 256
+  lstm_layers: 2
+  mask_hidden_dim: 256
+  mask_layers: 1
+  dropout: 0.1
+  use_enrollment: true
+  use_film: true
+  use_attention: true
+
+train:
+  batch_size: 2
+  epochs: 50
+  lr: 0.001
+  weight_decay: 0.000001
+  grad_clip: 5.0
+  amp: false
+  num_workers: 2
+  pin_memory: true
+  shuffle_train: true
+  drop_last_train: true
+  gain_augment_db: 0.0
+
+loss:
+  sisdr_weight: 1.0
+  mag_weight: 0.3
+  mrstft_weight: 0.0
+  spk_weight: 0.0
+
+checkpoint:
+  save_dir: checkpoints/en_tse_fam
+  monitor: valid_sisdr_i
+  mode: max
