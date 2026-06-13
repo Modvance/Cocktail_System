@@ -1,0 +1,5 @@
+config: configs/train_en_easy.yaml
+ckpt: checkpoints/en_tse_fam_easy/best.pt
+test_csv: data/generated/EN-TSE-Mix-Easy/test.csv
+out_dir: results/eval/en_model_on_en_easy
+num_examples: 3

@@ -55,7 +55,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--out_dir")
     parser.add_argument("--eval_config")
     parser.add_argument("--device")
-    parser.add_argument("--num_examples", type=int, default=3)
+    parser.add_argument("--num_examples", type=int, default=3, help="number of examples to export for each category")
     args = parser.parse_args()
     if args.eval_config:
         return args
@@ -100,51 +100,56 @@ def select_example_indices(rows: list[dict[str, Any]], num_examples: int) -> lis
         return []
     ranked_indices = sorted(range(len(rows)), key=lambda idx: (rows[idx]["si_sdri"], rows[idx]["sample_id"]))
     ranked_positions = {idx: pos for pos, idx in enumerate(ranked_indices)}
+    median_idx = ranked_indices[len(ranked_indices) // 2]
+    median_value = rows[median_idx]["si_sdri"]
     selected: list[tuple[str, int]] = []
-    used: set[int] = set()
 
-    def add(category: str, idx: int) -> None:
-        if idx in used:
-            return
-        selected.append((category, idx))
-        used.add(idx)
+    def take(category: str, candidates: list[int]) -> None:
+        taken = 0
+        for idx in candidates:
+            selected.append((category, idx))
+            taken += 1
+            if taken >= num_examples:
+                break
 
-    add("worst", ranked_indices[0])
-    median_pos = len(ranked_indices) // 2
-    add("median", ranked_indices[median_pos])
-    add("best", ranked_indices[-1])
-
-    if num_examples <= len(selected):
-        order = {"best": 0, "median": 1, "worst": 2}
-        return sorted(selected, key=lambda item: order[item[0]])[:num_examples]
-
-    center = (len(ranked_indices) - 1) / 2.0
-    remainder = [idx for idx in ranked_indices if idx not in used]
-    remainder.sort(key=lambda idx: (abs(ranked_positions[idx] - center), -rows[idx]["si_sdri"], rows[idx]["sample_id"]))
-    for idx in remainder:
-        if len(selected) >= num_examples:
-            break
-        add(f"extra_{len(selected) + 1}", idx)
+    take("worst", ranked_indices)
+    take("best", list(reversed(ranked_indices)))
+    median_candidates = sorted(
+        ranked_indices,
+        key=lambda idx: (
+            abs(ranked_positions[idx] - ranked_positions[median_idx]),
+            abs(rows[idx]["si_sdri"] - median_value),
+            rows[idx]["sample_id"],
+        ),
+    )
+    take("median", median_candidates)
 
     order = {"best": 0, "median": 1, "worst": 2}
-    return sorted(selected, key=lambda item: (order.get(item[0], 3), item[0]))
+    category_sort = {
+        "best": lambda idx: (-rows[idx]["si_sdri"], rows[idx]["sample_id"]),
+        "median": lambda idx: (abs(rows[idx]["si_sdri"] - median_value), rows[idx]["sample_id"]),
+        "worst": lambda idx: (rows[idx]["si_sdri"], rows[idx]["sample_id"]),
+    }
+    return sorted(selected, key=lambda item: (order[item[0]], *category_sort[item[0]](item[1])))
 
 
 def write_selected_examples_markdown(out_dir: Path, selected_examples: list[dict[str, Any]]) -> None:
     lines = ["# Selected Audio Examples", "", "Examples are chosen by `si_sdri`.", ""]
+    grouped: dict[str, list[dict[str, Any]]] = {"best": [], "median": [], "worst": []}
     for example in selected_examples:
-        row = example["row"]
-        lines.extend([
-            f"## {example['category']}",
-            f"- sample_id: {row['sample_id']}",
-            f"- si_sdri: {row['si_sdri']:.4f}",
-            f"- si_sdr_out: {row['si_sdr_out']:.4f}",
-            f"- snr_db: {row['snr_db']}",
-            f"- num_speakers: {row['num_speakers']}",
-            f"- lang: {row['lang']}",
-            f"- overlap_mode: {row['overlap_mode']}",
-            "",
-        ])
+        grouped.setdefault(example["category"], []).append(example)
+
+    for category in ["best", "median", "worst"]:
+        examples = grouped.get(category, [])
+        if not examples:
+            continue
+        lines.append(f"## {category}")
+        for example in examples:
+            row = example["row"]
+            lines.extend([
+                f"- sample_id: {row['sample_id']}, si_sdri: {row['si_sdri']:.4f}, si_sdr_out: {row['si_sdr_out']:.4f}, snr_db: {row['snr_db']}, num_speakers: {row['num_speakers']}, lang: {row['lang']}, overlap_mode: {row['overlap_mode']}",
+            ])
+        lines.append("")
     write_markdown(out_dir / "audio_examples" / "selected_examples.md", "\n".join(lines))
 
 

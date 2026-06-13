@@ -33,16 +33,16 @@ model:
   use_attention: true
 
 train:
-  batch_size: 4
+  batch_size: 64
   epochs: 60
   lr: 0.0005
   weight_decay: 0.000001
   grad_clip: 5.0
   amp: false
-  num_workers: 4
+  num_workers: 8
   pin_memory: true
   persistent_workers: true
-  prefetch_factor: 2
+  prefetch_factor: 4
   shuffle_train: true
   drop_last_train: true
   gain_augment_db: 3.0

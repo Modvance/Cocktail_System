@@ -1,0 +1,5 @@
+config: configs/train_zh_easy.yaml
+ckpt: checkpoints/zh_tse_fam_easy/best.pt
+test_csv: data/generated/ZH-TSE-Mix-Easy/test.csv
+out_dir: results/eval/zh_model_on_zh_easy
+num_examples: 3
